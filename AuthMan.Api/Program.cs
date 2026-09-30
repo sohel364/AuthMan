@@ -7,6 +7,16 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
+
+builder.Services.AddDataProtection();
+
+builder.Services
+    .AddIdentityCore<IdentityUser>(options =>
+    {
+        options.User.RequireUniqueEmail = true;
+        options.SignIn.RequireConfirmedEmail = true;
+    });
+
 builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseSqlite(
         builder.Configuration.GetConnectionString("AuthDb")

@@ -23,5 +23,12 @@ coverage.*
 *.suo
 *.sln.docstates
 
+# Local database
+*.db
+
+# Build output
+**/bin/
+**/obj/
+
 # macOS
 .DS_Store
