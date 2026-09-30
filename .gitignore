@@ -1,0 +1,27 @@
+# Claude context
+/Claude/
+
+# .NET build output
+[Bb]in/
+[Oo]bj/
+[Aa]rtifacts/
+[Ll]ogs/
+[Tt]est[Rr]esult*/
+*.trx
+coverage/
+coverage.*
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+
+# IDE files
+.vs/
+.idea/
+*.user
+*.suo
+*.sln.docstates
+
+# macOS
+.DS_Store

@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="AuthMan.Api.Tests/AuthMan.Api.Tests.csproj" />
+  <Project Path="AuthMan.Api/AuthMan.Api.csproj" />
+</Solution>
