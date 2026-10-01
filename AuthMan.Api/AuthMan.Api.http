@@ -1,6 +1,22 @@
 @AuthMan.Api_HostAddress = http://localhost:5094
+@testEmail = authman.test@example.com
 
-GET {{AuthMan.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+### Register a user
+POST {{AuthMan.Api_HostAddress}}/api/auth/register
+Content-Type: application/json
 
-###
+{
+	"email": "{{testEmail}}",
+	"password": "ChangeThis123!"
+}
+
+### Verify the email
+### Replace the token below with the development token printed in the API log.
+POST {{AuthMan.Api_HostAddress}}/api/auth/verify-email
+Content-Type: application/json
+
+{
+	"email": "{{testEmail}}",
+	"token": "PASTE_TOKEN_FROM_API_LOG"
+}
+
