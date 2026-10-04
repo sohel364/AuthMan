@@ -30,7 +30,8 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
         {
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:AuthDb"] = _connectionString
+                ["ConnectionStrings:AuthDb"] = _connectionString,
+                ["Email:PublicApiBaseUrl"] = "https://authman.example.test"
             });
         });
 
@@ -55,17 +56,17 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
 public sealed class RecordingEmailSender : IEmailSender
 {
     public string? LastSentEmail { get; private set; }
-    public string? LastToken { get; private set; }
+    public string? LastConfirmationLink { get; private set; }
     public int SendCount { get; private set; }
 
     public Task SendConfirmationAsync(
         string email,
-        string token,
+        string confirmationLink,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         LastSentEmail = email;
-        LastToken = token;
+        LastConfirmationLink = confirmationLink;
         SendCount++;
         return Task.CompletedTask;
     }

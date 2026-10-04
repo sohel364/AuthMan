@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
 using AuthMan.Api.Data;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -30,13 +31,15 @@ public sealed class AuthRegistrationTests : IDisposable
     }
 
     [Fact]
-    public async Task Register_CreatesUnconfirmedUser_AndSendsConfirmationToken()
+    public async Task Register_CreatesUnconfirmedUser_AndSendsConfirmationLink()
     {
         using var response = await RegisterAsync(Email);
 
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         Assert.Equal(Email, _factory.EmailSender.LastSentEmail);
-        Assert.False(string.IsNullOrWhiteSpace(_factory.EmailSender.LastToken));
+        Assert.StartsWith(
+            "https://authman.example.test/api/auth/verify-email-link?",
+            _factory.EmailSender.LastConfirmationLink);
 
         using var scope = _factory.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
@@ -47,20 +50,30 @@ public sealed class AuthRegistrationTests : IDisposable
     }
 
     [Fact]
-    public async Task VerifyEmail_WithValidToken_ConfirmsUserEmail()
+    public async Task VerifyEmailLink_WithValidToken_ConfirmsUserEmail()
     {
         using var registrationResponse = await RegisterAsync(Email);
         Assert.Equal(HttpStatusCode.Accepted, registrationResponse.StatusCode);
 
-        using var response = await _client.PostAsJsonAsync(
-            "/api/auth/verify-email",
-            new
-            {
-                email = Email,
-                token = _factory.EmailSender.LastToken
-            });
+        var confirmationUri = new Uri(_factory.EmailSender.LastConfirmationLink!);
+        var query = QueryHelpers.ParseQuery(confirmationUri.Query);
+        var email = query["email"].ToString();
+        var token = query["token"].ToString();
 
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        using var landingResponse = await _client.GetAsync(confirmationUri.PathAndQuery);
+        Assert.Equal(HttpStatusCode.OK, landingResponse.StatusCode);
+        Assert.Contains("Confirm email", await landingResponse.Content.ReadAsStringAsync());
+
+        using var response = await _client.PostAsync(
+            "/api/auth/verify-email-link",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["email"] = email,
+                ["token"] = token
+            }));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("Email confirmed", await response.Content.ReadAsStringAsync());
 
         using var scope = _factory.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
@@ -71,14 +84,29 @@ public sealed class AuthRegistrationTests : IDisposable
     }
 
     [Fact]
-    public async Task Register_DuplicateEmail_DoesNotSendAnotherToken()
+    public async Task Register_DuplicateUnconfirmedEmail_ResendsConfirmationLink()
     {
         using var firstResponse = await RegisterAsync(Email);
         using var secondResponse = await RegisterAsync(Email);
 
         Assert.Equal(HttpStatusCode.Accepted, firstResponse.StatusCode);
         Assert.Equal(HttpStatusCode.Accepted, secondResponse.StatusCode);
-        Assert.Equal(1, _factory.EmailSender.SendCount);
+        Assert.Equal(2, _factory.EmailSender.SendCount);
+    }
+
+    [Fact]
+    public async Task Register_LimitsConfirmationEmailsPerClient()
+    {
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            using var response = await RegisterAsync(Email);
+            Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        }
+
+        using var limitedResponse = await RegisterAsync(Email);
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, limitedResponse.StatusCode);
+        Assert.Equal(5, _factory.EmailSender.SendCount);
     }
 
     [Fact]

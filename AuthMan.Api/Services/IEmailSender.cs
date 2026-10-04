@@ -4,6 +4,6 @@ public interface IEmailSender
 {
     Task SendConfirmationAsync(
         string email,
-        string token,
+        string confirmationLink,
         CancellationToken cancellationToken);
 }

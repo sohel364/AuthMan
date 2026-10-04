@@ -1,15 +1,54 @@
 using AuthMan.Api.Data;
 using AuthMan.Api.Services;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("registration", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+});
 
 
 builder.Services.AddDataProtection();
+
+builder.Services
+    .AddOptions<EmailOptions>()
+    .BindConfiguration(EmailOptions.SectionName)
+    .Validate(options => !string.IsNullOrWhiteSpace(options.Host), "Email:Host is required.")
+    .Validate(options => options.Port is > 0 and <= 65535, "Email:Port must be between 1 and 65535.")
+    .Validate(options => !string.IsNullOrWhiteSpace(options.FromAddress), "Email:FromAddress is required.")
+    .Validate(
+        options => builder.Environment.IsDevelopment() || options.UseSsl || options.UseStartTls,
+        "SMTP must use SSL or STARTTLS outside Development.")
+    .Validate(options =>
+    {
+        if (!Uri.TryCreate(options.PublicApiBaseUrl, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        return uri.Scheme is "http" or "https";
+    }, "Email:PublicApiBaseUrl must be an absolute HTTP or HTTPS URL.")
+    .Validate(options =>
+        string.IsNullOrWhiteSpace(options.UserName) == string.IsNullOrWhiteSpace(options.Password),
+        "Email:UserName and Email:Password must either both be set or both be empty.")
+    .ValidateOnStart();
 
 builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseSqlite(
@@ -26,15 +65,7 @@ builder.Services
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
-if (builder.Environment.IsDevelopment())
-{
-    builder.Services.AddTransient<IEmailSender, DevelopmentEmailSender>();
-}
-else
-{
-    throw new InvalidOperationException(
-        "Configure a production IEmailSender before running outside Development.");
-}
+builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 
 builder.Services.AddAuthorization();
 
@@ -51,6 +82,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();
 
