@@ -24,30 +24,17 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 
+builder.Services.AddHttpClient();
 
 builder.Services.AddDataProtection();
 
 builder.Services
-    .AddOptions<EmailOptions>()
-    .BindConfiguration(EmailOptions.SectionName)
-    .Validate(options => !string.IsNullOrWhiteSpace(options.Host), "Email:Host is required.")
-    .Validate(options => options.Port is > 0 and <= 65535, "Email:Port must be between 1 and 65535.")
-    .Validate(options => !string.IsNullOrWhiteSpace(options.FromAddress), "Email:FromAddress is required.")
-    .Validate(
-        options => builder.Environment.IsDevelopment() || options.UseSsl || options.UseStartTls,
-        "SMTP must use SSL or STARTTLS outside Development.")
-    .Validate(options =>
-    {
-        if (!Uri.TryCreate(options.PublicApiBaseUrl, UriKind.Absolute, out var uri))
-        {
-            return false;
-        }
-
-        return uri.Scheme is "http" or "https";
-    }, "Email:PublicApiBaseUrl must be an absolute HTTP or HTTPS URL.")
-    .Validate(options =>
-        string.IsNullOrWhiteSpace(options.UserName) == string.IsNullOrWhiteSpace(options.Password),
-        "Email:UserName and Email:Password must either both be set or both be empty.")
+    .AddOptions<BirdEmailOptions>()
+    .BindConfiguration(BirdEmailOptions.SectionName)
+    .Validate(options => !string.IsNullOrWhiteSpace(options.ApiKey), "Bird:ApiKey is required.")
+    .Validate(options => !string.IsNullOrWhiteSpace(options.FromEmail), "Bird:FromEmail is required.")
+    .Validate(options => !string.IsNullOrWhiteSpace(options.BaseUrl), "Bird:BaseUrl is required.")
+    .Validate(options => !string.IsNullOrWhiteSpace(options.PublicApiBaseUrl), "Bird:PublicApiBaseUrl is required.")
     .ValidateOnStart();
 
 builder.Services.AddDbContext<AuthDbContext>(options =>
@@ -65,7 +52,7 @@ builder.Services
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
-builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
+builder.Services.AddTransient<IEmailSender, BirdEmailSender>();
 
 builder.Services.AddAuthorization();
 

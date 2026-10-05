@@ -31,7 +31,7 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:AuthDb"] = _connectionString,
-                ["Email:PublicApiBaseUrl"] = "https://authman.example.test"
+                ["Bird:PublicApiBaseUrl"] = "https://authman.example.test"
             });
         });
 
