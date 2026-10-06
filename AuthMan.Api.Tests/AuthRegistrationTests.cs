@@ -138,6 +138,48 @@ public sealed class AuthRegistrationTests : IDisposable
         Assert.Equal(0, _factory.EmailSender.SendCount);
     }
 
+    [Fact]
+    public async Task OpenIddictDiscovery_ReturnsAuthorizationCodeAndPkceEndpoints()
+    {
+        using var response = await _client.GetAsync("/.well-known/openid-configuration");
+        var discovery = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("https://localhost/connect/authorize", discovery.GetProperty("authorization_endpoint").GetString());
+        Assert.Equal("https://localhost/connect/token", discovery.GetProperty("token_endpoint").GetString());
+        Assert.Contains(
+            "code",
+            discovery.GetProperty("response_types_supported").EnumerateArray().Select(value => value.GetString()));
+        Assert.Contains(
+            "S256",
+            discovery.GetProperty("code_challenge_methods_supported").EnumerateArray().Select(value => value.GetString()));
+    }
+
+    [Fact]
+    public async Task IdentityLoginPage_IsAvailable()
+    {
+        using var response = await _client.GetAsync("/Identity/Account/Login");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("Log in", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task AuthorizationRequest_ForRegisteredClient_RedirectsAnonymousUserToLogin()
+    {
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            AllowAutoRedirect = false
+        });
+
+        using var response = await client.GetAsync(
+            "/connect/authorize?client_id=authman-web-dev&redirect_uri=https%3A%2F%2Flocalhost%3A5173%2Fsignin-oidc&response_type=code&scope=openid%20email&code_challenge=abc123&code_challenge_method=S256&state=test-state");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.StartsWith("https://localhost/Identity/Account/Login?ReturnUrl=", response.Headers.Location?.OriginalString);
+    }
+
     private Task<HttpResponseMessage> RegisterAsync(string email) =>
         _client.PostAsJsonAsync(
             "/api/auth/register",
