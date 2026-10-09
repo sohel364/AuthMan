@@ -27,17 +27,14 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 
-builder.Services.AddHttpClient();
-
 builder.Services.AddDataProtection();
 
 builder.Services
-    .AddOptions<BirdEmailOptions>()
-    .BindConfiguration(BirdEmailOptions.SectionName)
-    .Validate(options => !string.IsNullOrWhiteSpace(options.ApiKey), "Bird:ApiKey is required.")
-    .Validate(options => !string.IsNullOrWhiteSpace(options.FromEmail), "Bird:FromEmail is required.")
-    .Validate(options => !string.IsNullOrWhiteSpace(options.BaseUrl), "Bird:BaseUrl is required.")
-    .Validate(options => !string.IsNullOrWhiteSpace(options.PublicApiBaseUrl), "Bird:PublicApiBaseUrl is required.")
+    .AddOptions<EmailOptions>()
+    .BindConfiguration(EmailOptions.SectionName)
+    .Validate(options => !string.IsNullOrWhiteSpace(options.Host), "Email:Host is required.")
+    .Validate(options => !string.IsNullOrWhiteSpace(options.FromAddress), "Email:FromAddress is required.")
+    .Validate(options => !string.IsNullOrWhiteSpace(options.PublicApiBaseUrl), "Email:PublicApiBaseUrl is required.")
     .ValidateOnStart();
 
 builder.Services.AddDbContext<AuthDbContext>(options =>
@@ -111,7 +108,7 @@ builder.Services.AddOpenIddict()
             .EnableTokenEndpointPassthrough();
     });
 
-builder.Services.AddTransient<IEmailSender, BirdEmailSender>();
+builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 
 builder.Services.AddAuthorization();
 

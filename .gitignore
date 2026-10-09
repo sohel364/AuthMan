@@ -25,6 +25,8 @@ coverage.*
 
 # Local database
 *.db
+*.db-shm
+*.db-wal
 
 # Build output
 **/bin/

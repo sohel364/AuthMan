@@ -15,7 +15,7 @@ namespace AuthMan.Api.Controllers;
 public sealed class AuthController(
     UserManager<IdentityUser> userManager,
     IEmailSender emailSender,
-    IOptions<BirdEmailOptions> birdEmailOptions) : ControllerBase
+    IOptions<EmailOptions> emailOptions) : ControllerBase
 {
     [HttpPost("register")]
     [EnableRateLimiting("registration")]
@@ -193,7 +193,7 @@ public sealed class AuthController(
     {
         var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
         var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-        var baseUrl = birdEmailOptions.Value.PublicApiBaseUrl.TrimEnd('/');
+        var baseUrl = emailOptions.Value.PublicApiBaseUrl.TrimEnd('/');
         var confirmationLink = QueryHelpers.AddQueryString(
             $"{baseUrl}/api/auth/verify-email-link",
             new Dictionary<string, string?>
