@@ -1,5 +1,8 @@
 # Claude context
 /Claude/
+CLAUDE.md
+CLAUDE.local.md
+.claude/
 
 # .NET build output
 [Bb]in/
